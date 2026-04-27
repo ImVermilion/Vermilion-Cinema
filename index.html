@@ -93,7 +93,7 @@
             position: absolute; top: 0; left: 0; right: 0; bottom: 0;
             background: rgba(0,0,0,0.4); opacity: 0; transition: 0.3s;
             display: flex; justify-content: center; align-items: center;
-            pointer-events: none; /* Arreglo para que el clic pase a la tarjeta */
+            pointer-events: none; /* Soluciona el bug del click en el botón play */
         }
         .card:hover .card-overlay { opacity: 1; }
         .play-icon {
@@ -111,6 +111,18 @@
         .card-title { font-size: 0.9rem; font-weight: bold; text-shadow: 1px 1px 2px black; }
         .card-badge { position: absolute; top: 10px; left: 10px; background: var(--accent); color: white; font-size: 10px; font-weight: bold; padding: 3px 6px; border-radius: 3px; z-index: 5;}
 
+        /* --- BOTÓN FAVORITOS --- */
+        .fav-btn {
+            position: absolute; top: 10px; right: 10px; z-index: 20;
+            background: rgba(0,0,0,0.6); padding: 5px; border-radius: 50%;
+            width: 32px; height: 32px; display: flex; justify-content: center; align-items: center;
+            font-size: 16px; cursor: pointer; transition: 0.2s; backdrop-filter: blur(5px);
+            border: 1px solid transparent;
+        }
+        .fav-btn:hover { border-color: white; transform: scale(1.1); }
+        .fav-btn.is-fav { color: var(--accent); }
+        .fav-btn.not-fav { color: white; filter: grayscale(100%); opacity: 0.8; }
+
         /* --- CARGADOR (SPINNER) --- */
         .loader-container { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; width: 100%; grid-column: 1 / -1; }
         .spinner { width: 40px; height: 40px; border: 4px solid rgba(255,255,255,0.1); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 15px; }
@@ -120,7 +132,7 @@
         footer {
             background: #0a0a0a; border-top: 1px solid #222;
             padding: 30px 4%; text-align: center; color: #666;
-            font-size: 12px; line-height: 1.6; padding-bottom: 80px; /* Espacio para el botón de donar */
+            font-size: 12px; line-height: 1.6; padding-bottom: 80px;
         }
         .footer-content { max-width: 800px; margin: 0 auto; }
 
@@ -188,6 +200,7 @@
 
     <div class="category-nav" id="cat-nav">
         <button class="cat-btn active" onclick="renderCategory('todos', this)">Inicio</button>
+        <button class="cat-btn" onclick="renderCategory('favoritos', this)">❤️ Mi Lista</button>
         <button class="cat-btn highlight" onclick="cargarNovedades(this)">🔥 Novedades</button>
         <button class="cat-btn" onclick="renderCategory('peliculas', this)">Películas</button>
         <button class="cat-btn" onclick="renderCategory('series', this)">Series</button>
@@ -273,6 +286,34 @@
         let currentShowData = null; 
         let currentImdbId = null;
 
+        // --- SISTEMA DE FAVORITOS (LOCALSTORAGE) ---
+        let favoritos = JSON.parse(localStorage.getItem('vermilion_favs')) || [];
+
+        function toggleFavorito(event, id, title, isSerie) {
+            event.stopPropagation(); // Evitar que el clic abra la película
+            const index = favoritos.findIndex(f => f.id === id);
+            
+            if (index > -1) {
+                // Quitar de favoritos
+                favoritos.splice(index, 1);
+                event.currentTarget.classList.remove('is-fav');
+                event.currentTarget.classList.add('not-fav');
+            } else {
+                // Añadir a favoritos
+                favoritos.push({ id, n: title, isSerie });
+                event.currentTarget.classList.remove('not-fav');
+                event.currentTarget.classList.add('is-fav');
+            }
+            
+            localStorage.setItem('vermilion_favs', JSON.stringify(favoritos));
+
+            // Si estamos dentro de la pestaña de favoritos, recargamos la vista
+            const activeBtn = document.querySelector('.cat-btn.active');
+            if (activeBtn && activeBtn.innerText.includes('Mi Lista')) {
+                renderCategory('favoritos', activeBtn);
+            }
+        }
+
         // --- EFECTO NAVBAR SCROLL Y BUSCADOR ---
         window.addEventListener('scroll', () => {
             const header = document.getElementById('main-header');
@@ -302,15 +343,20 @@
             `;
         }
 
-        // --- RENDERIZADO DE TU BASE MANUAL ---
+        // --- RENDERIZADO GENERAL (INCLUYENDO CORAZÓN) ---
         function crearTarjeta(item, isSerieFlag = false, isNew = false) {
             const poster = `https://images.metahub.space/poster/medium/${item.id}/img`;
             const fallback = `https://via.placeholder.com/300x450/1f1f1f/ffffff?text=${encodeURIComponent(item.n)}`;
             const badge = isNew ? '<div class="card-badge">NUEVO</div>' : '';
             
+            // Verificar si está en favoritos para pintar el corazón
+            const isFav = favoritos.some(f => f.id === item.id);
+            const favClass = isFav ? 'is-fav' : 'not-fav';
+            
             return `
                 <div class="card" onclick="analizarYReproducir('${item.id}', '${item.n.replace(/'/g, "\\'")}', ${isSerieFlag})">
                     ${badge}
+                    <div class="fav-btn ${favClass}" onclick="toggleFavorito(event, '${item.id}', '${item.n.replace(/'/g, "\\'")}', ${isSerieFlag})">❤️</div>
                     <img src="${poster}" onerror="this.onerror=null; this.src='${fallback}';">
                     <div class="card-overlay"><div class="play-icon"></div></div>
                     <div class="card-info"><div class="card-title">${item.n}</div></div>
@@ -329,7 +375,15 @@
             }
 
             const grid = document.getElementById('mainGrid');
-            if (cat === 'todos') {
+            
+            if (cat === 'favoritos') {
+                document.getElementById('grid-label').innerText = "Tus Guardados";
+                if (favoritos.length === 0) {
+                    grid.innerHTML = "<p style='color:#888; padding: 20px;'>Aún no has guardado nada en tu lista. Presiona el ❤️ en cualquier película para guardarla.</p>";
+                } else {
+                    grid.innerHTML = favoritos.map(p => crearTarjeta(p, p.isSerie)).join('');
+                }
+            } else if (cat === 'todos') {
                 document.getElementById('grid-label').innerText = "Lo más destacado de tu lista";
                 const mix = [...db.peliculas.slice(0,4), ...db.series.slice(0,4), ...db.anime.slice(0,4)];
                 grid.innerHTML = mix.map(p => crearTarjeta(p)).join('');
@@ -339,7 +393,7 @@
             }
         }
 
-        // --- NOVEDADES EN TIEMPO REAL (FETCH NORMAL) ---
+        // --- NOVEDADES CON FETCH NORMAL Y DETECCIÓN DE ERRORES TMDB ---
         async function cargarNovedades(btnElement) {
             document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
             btnElement.classList.add('active');
@@ -347,11 +401,19 @@
             mostrarCargando("Buscando tendencias mundiales...");
 
             try {
+                // Hacemos la petición Fetch limpiamente (ya no usamos JSONP)
                 const res = await fetch(`https://api.themoviedb.org/3/trending/all/week?api_key=${PUBLIC_API_KEY}&language=es-ES`);
                 const data = await res.json();
+                
+                // SI TMDB DEVUELVE UN ERROR (Ej. API Key inválida) lo mostramos en pantalla para saber qué pasa:
+                if (data.success === false) {
+                    document.getElementById('mainGrid').innerHTML = `<p style='color:var(--accent); padding: 20px; font-weight:bold;'>Error de TMDB: ${data.status_message}</p>`;
+                    return;
+                }
+                
                 procesarNovedades(data);
             } catch (error) {
-                document.getElementById('mainGrid').innerHTML = "<p style='color:var(--accent); padding: 20px;'>Error al conectar con TMDB.</p>";
+                document.getElementById('mainGrid').innerHTML = "<p style='color:var(--accent); padding: 20px;'>Error de red al conectar con TMDB.</p>";
             }
         }
 
@@ -378,7 +440,7 @@
             }
         }
 
-        // Convierte ID de TMDB a IMDb usando Fetch
+        // Convierte ID de TMDB a IMDb usando Fetch normal
         async function reproducirDesdeTMDB(tmdbId, title, isSerie) {
             document.getElementById('grid-label').innerText = "Abriendo: " + title;
             const type = isSerie ? 'tv' : 'movie';
