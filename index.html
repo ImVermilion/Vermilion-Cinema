@@ -93,6 +93,7 @@
             position: absolute; top: 0; left: 0; right: 0; bottom: 0;
             background: rgba(0,0,0,0.4); opacity: 0; transition: 0.3s;
             display: flex; justify-content: center; align-items: center;
+            pointer-events: none; /* Arreglo para que el clic pase a la tarjeta */
         }
         .card:hover .card-overlay { opacity: 1; }
         .play-icon {
@@ -338,20 +339,22 @@
             }
         }
 
-        // --- NOVEDADES EN TIEMPO REAL ANTI-CORS (JSONP) ---
-        function cargarNovedades(btnElement) {
+        // --- NOVEDADES EN TIEMPO REAL (FETCH NORMAL) ---
+        async function cargarNovedades(btnElement) {
             document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
             btnElement.classList.add('active');
             document.getElementById('grid-label').innerText = "Top Global de la Semana (Actualizado Hoy)";
             mostrarCargando("Buscando tendencias mundiales...");
 
-            // Usamos JSONP inyectando un script para saltarnos el bloqueo del navegador en local
-            const script = document.createElement('script');
-            script.src = `https://api.themoviedb.org/3/trending/all/week?api_key=${PUBLIC_API_KEY}&language=es-ES&callback=procesarNovedades`;
-            document.body.appendChild(script);
+            try {
+                const res = await fetch(`https://api.themoviedb.org/3/trending/all/week?api_key=${PUBLIC_API_KEY}&language=es-ES`);
+                const data = await res.json();
+                procesarNovedades(data);
+            } catch (error) {
+                document.getElementById('mainGrid').innerHTML = "<p style='color:var(--accent); padding: 20px;'>Error al conectar con TMDB.</p>";
+            }
         }
 
-        // Esta función es llamada automáticamente por el script de TMDB
         function procesarNovedades(data) {
             const grid = document.getElementById('mainGrid');
             if(data && data.results) {
@@ -375,26 +378,23 @@
             }
         }
 
-        // Convierte ID de TMDB a IMDb también usando JSONP para evitar bloqueos
-        function reproducirDesdeTMDB(tmdbId, title, isSerie) {
+        // Convierte ID de TMDB a IMDb usando Fetch
+        async function reproducirDesdeTMDB(tmdbId, title, isSerie) {
             document.getElementById('grid-label').innerText = "Abriendo: " + title;
-            
-            // Guardamos el título temporalmente para usarlo cuando responda el servidor
-            window.tempCurrentTitle = title;
-            window.tempCurrentIsSerie = isSerie;
-
             const type = isSerie ? 'tv' : 'movie';
-            const script = document.createElement('script');
-            script.src = `https://api.themoviedb.org/3/${type}/${tmdbId}/external_ids?api_key=${PUBLIC_API_KEY}&callback=ejecutarReproduccionExterna`;
-            document.body.appendChild(script);
-        }
-
-        function ejecutarReproduccionExterna(data) {
-            if(data && data.imdb_id) {
-                analizarYReproducir(data.imdb_id, window.tempCurrentTitle, window.tempCurrentIsSerie);
-            } else {
-                alert("Esta novedad aún no tiene un ID de reproducción asignado.");
-                document.getElementById('grid-label').innerText = "Top Global de la Semana";
+            
+            try {
+                const res = await fetch(`https://api.themoviedb.org/3/${type}/${tmdbId}/external_ids?api_key=${PUBLIC_API_KEY}`);
+                const data = await res.json();
+                
+                if(data && data.imdb_id) {
+                    analizarYReproducir(data.imdb_id, title, isSerie);
+                } else {
+                    alert("Esta novedad aún no tiene un ID de reproducción asignado.");
+                    document.getElementById('grid-label').innerText = "Top Global de la Semana";
+                }
+            } catch (error) {
+                alert("Error al buscar el ID de la película/serie.");
             }
         }
 
