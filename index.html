@@ -73,11 +73,18 @@
         }
         .cat-btn:hover { color: #fff; }
         .cat-btn.active { color: #fff; border-bottom: 3px solid var(--accent); }
-        .cat-btn.highlight { color: #ffcc00; text-shadow: 0 0 10px rgba(255,204,0,0.3); }
 
         /* --- CONTENIDO PRINCIPAL --- */
         .content { padding: 20px 4% 50px; flex: 1; }
-        h2 { font-size: 1.3rem; margin-bottom: 20px; font-weight: 600; }
+        
+        .header-title-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;}
+        h2 { font-size: 1.3rem; margin: 0; font-weight: 600; }
+
+        .action-btns { display: flex; gap: 10px; }
+        .action-btn { background: #333; color: white; border: none; padding: 8px 12px; border-radius: 4px; font-size: 12px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .action-btn:hover { background: #555; }
+        .action-btn.danger { background: rgba(229, 9, 20, 0.2); border: 1px solid var(--accent); color: var(--accent); }
+        .action-btn.danger:hover { background: var(--accent); color: white; }
 
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 20px; }
 
@@ -109,7 +116,6 @@
             background: linear-gradient(to top, rgba(0,0,0,0.95) 0%, transparent 100%);
         }
         .card-title { font-size: 0.9rem; font-weight: bold; text-shadow: 1px 1px 2px black; }
-        .card-badge { position: absolute; top: 10px; left: 10px; background: var(--accent); color: white; font-size: 10px; font-weight: bold; padding: 3px 6px; border-radius: 3px; z-index: 5;}
 
         /* --- BOTÓN FAVORITOS --- */
         .fav-btn {
@@ -201,16 +207,24 @@
     <div class="category-nav" id="cat-nav">
         <button class="cat-btn active" onclick="renderCategory('todos', this)">Inicio</button>
         <button class="cat-btn" onclick="renderCategory('favoritos', this)">❤️ Mi Lista</button>
-        <button class="cat-btn highlight" onclick="cargarNovedades(this)">🔥 Novedades</button>
         <button class="cat-btn" onclick="renderCategory('peliculas', this)">Películas</button>
         <button class="cat-btn" onclick="renderCategory('series', this)">Series</button>
         <button class="cat-btn" onclick="renderCategory('anime', this)">Anime</button>
     </div>
 
     <div class="content">
-        <h2 id="grid-label">Lo más destacado</h2>
+        <div class="header-title-container">
+            <h2 id="grid-label">Lo más destacado</h2>
+            <div id="action-buttons-container" class="action-btns" style="display: none;">
+                <button class="action-btn" onclick="exportarLista()">📥 Exportar</button>
+                <button class="action-btn" onclick="document.getElementById('importInput').click()">📤 Importar</button>
+                <button class="action-btn danger" onclick="vaciarLista()">🗑️ Vaciar</button>
+            </div>
+        </div>
         <div class="grid" id="mainGrid"></div>
     </div>
+    
+    <input type="file" id="importInput" accept=".json" style="display: none;" onchange="importarLista(event)">
 
     <a href="https://paypal.me/ImVermilion" target="_blank" class="paypal-float">
         ☕ Apoya el proyecto
@@ -282,7 +296,6 @@
             ]
         };
 
-        const PUBLIC_API_KEY = "45140026e6d76472491f48624f114c02"; 
         let currentShowData = null; 
         let currentImdbId = null;
 
@@ -294,12 +307,10 @@
             const index = favoritos.findIndex(f => f.id === id);
             
             if (index > -1) {
-                // Quitar de favoritos
                 favoritos.splice(index, 1);
                 event.currentTarget.classList.remove('is-fav');
                 event.currentTarget.classList.add('not-fav');
             } else {
-                // Añadir a favoritos
                 favoritos.push({ id, n: title, isSerie });
                 event.currentTarget.classList.remove('not-fav');
                 event.currentTarget.classList.add('is-fav');
@@ -307,10 +318,56 @@
             
             localStorage.setItem('vermilion_favs', JSON.stringify(favoritos));
 
-            // Si estamos dentro de la pestaña de favoritos, recargamos la vista
+            // Si estamos en la pestaña Mi Lista, actualizar la vista
             const activeBtn = document.querySelector('.cat-btn.active');
             if (activeBtn && activeBtn.innerText.includes('Mi Lista')) {
                 renderCategory('favoritos', activeBtn);
+            }
+        }
+
+        // --- IMPORTAR / EXPORTAR / VACIAR LISTA ---
+        function exportarLista() {
+            if (favoritos.length === 0) return alert("Tu lista está vacía, no hay nada que exportar.");
+            
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(favoritos));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", "vermilion_lista.json");
+            document.body.appendChild(downloadAnchorNode); // Requerido en algunos navegadores
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        }
+
+        function importarLista(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    if (Array.isArray(importedData)) {
+                        favoritos = importedData;
+                        localStorage.setItem('vermilion_favs', JSON.stringify(favoritos));
+                        alert("¡Lista importada con éxito!");
+                        renderCategory('favoritos'); 
+                    } else {
+                        alert("El archivo no tiene un formato válido para Vermilion Cinema.");
+                    }
+                } catch (err) {
+                    alert("Error al leer el archivo JSON.");
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = ''; // Limpiar el input para poder volver a subir el mismo archivo si es necesario
+        }
+
+        function vaciarLista() {
+            if (favoritos.length === 0) return;
+            if (confirm("¿Estás seguro de que quieres borrar TODA tu lista? Esta acción no se puede deshacer.")) {
+                favoritos = [];
+                localStorage.setItem('vermilion_favs', JSON.stringify(favoritos));
+                renderCategory('favoritos');
             }
         }
 
@@ -332,7 +389,6 @@
             document.getElementById('searchInput').focus();
         }
 
-        // --- INDICADOR DE CARGA ---
         function mostrarCargando(mensaje) {
             const grid = document.getElementById('mainGrid');
             grid.innerHTML = `
@@ -343,19 +399,16 @@
             `;
         }
 
-        // --- RENDERIZADO GENERAL (INCLUYENDO CORAZÓN) ---
-        function crearTarjeta(item, isSerieFlag = false, isNew = false) {
+        // --- RENDERIZADO GENERAL ---
+        function crearTarjeta(item, isSerieFlag = false) {
             const poster = `https://images.metahub.space/poster/medium/${item.id}/img`;
             const fallback = `https://via.placeholder.com/300x450/1f1f1f/ffffff?text=${encodeURIComponent(item.n)}`;
-            const badge = isNew ? '<div class="card-badge">NUEVO</div>' : '';
             
-            // Verificar si está en favoritos para pintar el corazón
             const isFav = favoritos.some(f => f.id === item.id);
             const favClass = isFav ? 'is-fav' : 'not-fav';
             
             return `
                 <div class="card" onclick="analizarYReproducir('${item.id}', '${item.n.replace(/'/g, "\\'")}', ${isSerieFlag})">
-                    ${badge}
                     <div class="fav-btn ${favClass}" onclick="toggleFavorito(event, '${item.id}', '${item.n.replace(/'/g, "\\'")}', ${isSerieFlag})">❤️</div>
                     <img src="${poster}" onerror="this.onerror=null; this.src='${fallback}';">
                     <div class="card-overlay"><div class="play-icon"></div></div>
@@ -366,6 +419,8 @@
 
         function renderCategory(cat, btnElement = null) {
             limpiarBuscador();
+            
+            // Gestión de los botones del menú
             if (btnElement) {
                 document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
                 btnElement.classList.add('active');
@@ -375,11 +430,17 @@
             }
 
             const grid = document.getElementById('mainGrid');
+            const actionBtns = document.getElementById('action-buttons-container');
             
+            // Ocultar botones de acción por defecto
+            actionBtns.style.display = 'none';
+
             if (cat === 'favoritos') {
                 document.getElementById('grid-label').innerText = "Tus Guardados";
+                actionBtns.style.display = 'flex'; // Mostrar botones de import/export
+                
                 if (favoritos.length === 0) {
-                    grid.innerHTML = "<p style='color:#888; padding: 20px;'>Aún no has guardado nada en tu lista. Presiona el ❤️ en cualquier película para guardarla.</p>";
+                    grid.innerHTML = "<p style='color:#888; padding: 20px; grid-column: 1/-1;'>Aún no has guardado nada en tu lista. Presiona el ❤️ en cualquier película para guardarla.</p>";
                 } else {
                     grid.innerHTML = favoritos.map(p => crearTarjeta(p, p.isSerie)).join('');
                 }
@@ -393,76 +454,11 @@
             }
         }
 
-        // --- NOVEDADES CON FETCH NORMAL Y DETECCIÓN DE ERRORES TMDB ---
-        async function cargarNovedades(btnElement) {
-            document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
-            btnElement.classList.add('active');
-            document.getElementById('grid-label').innerText = "Top Global de la Semana (Actualizado Hoy)";
-            mostrarCargando("Buscando tendencias mundiales...");
-
-            try {
-                // Hacemos la petición Fetch limpiamente (ya no usamos JSONP)
-                const res = await fetch(`https://api.themoviedb.org/3/trending/all/week?api_key=${PUBLIC_API_KEY}&language=es-ES`);
-                const data = await res.json();
-                
-                // SI TMDB DEVUELVE UN ERROR (Ej. API Key inválida) lo mostramos en pantalla para saber qué pasa:
-                if (data.success === false) {
-                    document.getElementById('mainGrid').innerHTML = `<p style='color:var(--accent); padding: 20px; font-weight:bold;'>Error de TMDB: ${data.status_message}</p>`;
-                    return;
-                }
-                
-                procesarNovedades(data);
-            } catch (error) {
-                document.getElementById('mainGrid').innerHTML = "<p style='color:var(--accent); padding: 20px;'>Error de red al conectar con TMDB.</p>";
-            }
-        }
-
-        function procesarNovedades(data) {
-            const grid = document.getElementById('mainGrid');
-            if(data && data.results) {
-                grid.innerHTML = data.results.map(m => {
-                    if(!m.poster_path) return '';
-                    const title = m.title || m.name;
-                    const isSerie = m.media_type === 'tv';
-                    const poster = `https://image.tmdb.org/t/p/w300${m.poster_path}`;
-                    
-                    return `
-                        <div class="card" onclick="reproducirDesdeTMDB(${m.id}, '${title.replace(/'/g, "\\'")}', ${isSerie})">
-                            <div class="card-badge" style="background:#ffcc00; color:black;">⭐ ${m.vote_average.toFixed(1)}</div>
-                            <img src="${poster}">
-                            <div class="card-overlay"><div class="play-icon"></div></div>
-                            <div class="card-info"><div class="card-title">${title}</div></div>
-                        </div>
-                    `;
-                }).join('');
-            } else {
-                grid.innerHTML = "<p style='color:var(--accent); padding: 20px;'>No se pudieron cargar las novedades.</p>";
-            }
-        }
-
-        // Convierte ID de TMDB a IMDb usando Fetch normal
-        async function reproducirDesdeTMDB(tmdbId, title, isSerie) {
-            document.getElementById('grid-label').innerText = "Abriendo: " + title;
-            const type = isSerie ? 'tv' : 'movie';
-            
-            try {
-                const res = await fetch(`https://api.themoviedb.org/3/${type}/${tmdbId}/external_ids?api_key=${PUBLIC_API_KEY}`);
-                const data = await res.json();
-                
-                if(data && data.imdb_id) {
-                    analizarYReproducir(data.imdb_id, title, isSerie);
-                } else {
-                    alert("Esta novedad aún no tiene un ID de reproducción asignado.");
-                    document.getElementById('grid-label').innerText = "Top Global de la Semana";
-                }
-            } catch (error) {
-                alert("Error al buscar el ID de la película/serie.");
-            }
-        }
-
         // --- BÚSQUEDA AUTOMÁTICA ---
         async function procesarEntrada() {
             document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('action-buttons-container').style.display = 'none';
+            
             const input = document.getElementById('searchInput').value.trim();
             if(!input) return;
             
