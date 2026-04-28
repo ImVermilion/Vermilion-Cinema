@@ -455,48 +455,54 @@
             }
         }
 // --- NOVEDADES EN TIEMPO REAL (SIN API KEY - USANDO YTS) ---
+        // --- NOVEDADES EN TIEMPO REAL (SERIES POPULARES CON TVMAZE) ---
+        // Usamos TVMaze porque es una API sin Key, 100% legal y no está bloqueada por las operadoras
         async function cargarNovedades(btnElement) {
             document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
             btnElement.classList.add('active');
             
             // Ocultar botones de exportar/importar si están visibles
             document.getElementById('action-buttons-container').style.display = 'none';
-            document.getElementById('grid-label').innerText = "🔥 Películas más populares (Sin API Key)";
+            document.getElementById('grid-label').innerText = "🔥 Series del Momento (Sin API Key)";
             
             mostrarCargando("Buscando tendencias mundiales...");
 
             try {
-                // API Pública gratuita. sort_by=download_count simula muy bien las "Tendencias"
-                const res = await fetch(`https://yts.mx/api/v2/list_movies.json?sort_by=download_count&limit=15`);
-                const data = await res.json();
+                // Obtenemos la lista principal de TVMaze
+                const res = await fetch(`https://api.tvmaze.com/shows`);
+                const shows = await res.json();
                 
-                if(data.status === "ok" && data.data.movies) {
-                    procesarNovedadesYTS(data.data.movies);
-                } else {
-                    throw new Error("Respuesta inválida");
-                }
+                // Ordenamos por la propiedad "weight" (popularidad) y cogemos las 16 primeras
+                const populares = shows.sort((a, b) => b.weight - a.weight).slice(0, 16);
+                procesarNovedadesTVMaze(populares);
             } catch (error) {
                 document.getElementById('mainGrid').innerHTML = "<p style='color:var(--accent); padding: 20px;'>Error al conectar con la base de datos pública.</p>";
             }
         }
 
-        function procesarNovedadesYTS(peliculas) {
+        function procesarNovedadesTVMaze(series) {
             const grid = document.getElementById('mainGrid');
             
-            grid.innerHTML = peliculas.map(m => {
-                if(!m.imdb_code) return ''; // Nos aseguramos de que tenga ID de IMDb
+            grid.innerHTML = series.map(s => {
+                // TVMaze nos da directamente el ID de IMDb, ¡perfecto para nuestro reproductor!
+                const imdbId = s.externals ? s.externals.imdb : null;
+                if(!imdbId) return ''; 
                 
                 // Verificar si ya la guardaste en favoritos para pintar el corazón
-                const isFav = favoritos.some(f => f.id === m.imdb_code);
+                const isFav = favoritos.some(f => f.id === imdbId);
                 const favClass = isFav ? 'is-fav' : 'not-fav';
                 
+                // Fallbacks por si la serie no tiene imagen o nota
+                const poster = s.image ? s.image.medium : `https://via.placeholder.com/300x450/1f1f1f/ffffff?text=${encodeURIComponent(s.name)}`;
+                const rating = s.rating && s.rating.average ? s.rating.average : '-';
+
                 return `
-                    <div class="card" onclick="analizarYReproducir('${m.imdb_code}', '${m.title.replace(/'/g, "\\'")}', false)">
-                        <div class="card-badge" style="background:#ffcc00; color:black;">⭐ ${m.rating}</div>
-                        <div class="fav-btn ${favClass}" onclick="toggleFavorito(event, '${m.imdb_code}', '${m.title.replace(/'/g, "\\'")}', false)">❤️</div>
-                        <img src="${m.medium_cover_image}" onerror="this.onerror=null; this.src='https://via.placeholder.com/300x450/1f1f1f/ffffff?text=${encodeURIComponent(m.title)}';">
+                    <div class="card" onclick="analizarYReproducir('${imdbId}', '${s.name.replace(/'/g, "\\'")}', true)">
+                        <div class="card-badge" style="background:#ffcc00; color:black;">⭐ ${rating}</div>
+                        <div class="fav-btn ${favClass}" onclick="toggleFavorito(event, '${imdbId}', '${s.name.replace(/'/g, "\\'")}', true)">❤️</div>
+                        <img src="${poster}" onerror="this.onerror=null; this.src='https://via.placeholder.com/300x450/1f1f1f/ffffff?text=Error';">
                         <div class="card-overlay"><div class="play-icon"></div></div>
-                        <div class="card-info"><div class="card-title">${m.title}</div></div>
+                        <div class="card-info"><div class="card-title">${s.name}</div></div>
                     </div>
                 `;
             }).join('');
