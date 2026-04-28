@@ -207,6 +207,7 @@
     <div class="category-nav" id="cat-nav">
         <button class="cat-btn active" onclick="renderCategory('todos', this)">Inicio</button>
         <button class="cat-btn" onclick="renderCategory('favoritos', this)">❤️ Mi Lista</button>
+        <button class="cat-btn highlight" onclick="cargarNovedades(this)">🔥 Populares</button>
         <button class="cat-btn" onclick="renderCategory('peliculas', this)">Películas</button>
         <button class="cat-btn" onclick="renderCategory('series', this)">Series</button>
         <button class="cat-btn" onclick="renderCategory('anime', this)">Anime</button>
@@ -453,7 +454,53 @@
                 grid.innerHTML = db[cat].map(p => crearTarjeta(p, cat !== 'peliculas')).join('');
             }
         }
+// --- NOVEDADES EN TIEMPO REAL (SIN API KEY - USANDO YTS) ---
+        async function cargarNovedades(btnElement) {
+            document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+            btnElement.classList.add('active');
+            
+            // Ocultar botones de exportar/importar si están visibles
+            document.getElementById('action-buttons-container').style.display = 'none';
+            document.getElementById('grid-label').innerText = "🔥 Películas más populares (Sin API Key)";
+            
+            mostrarCargando("Buscando tendencias mundiales...");
 
+            try {
+                // API Pública gratuita. sort_by=download_count simula muy bien las "Tendencias"
+                const res = await fetch(`https://yts.mx/api/v2/list_movies.json?sort_by=download_count&limit=15`);
+                const data = await res.json();
+                
+                if(data.status === "ok" && data.data.movies) {
+                    procesarNovedadesYTS(data.data.movies);
+                } else {
+                    throw new Error("Respuesta inválida");
+                }
+            } catch (error) {
+                document.getElementById('mainGrid').innerHTML = "<p style='color:var(--accent); padding: 20px;'>Error al conectar con la base de datos pública.</p>";
+            }
+        }
+
+        function procesarNovedadesYTS(peliculas) {
+            const grid = document.getElementById('mainGrid');
+            
+            grid.innerHTML = peliculas.map(m => {
+                if(!m.imdb_code) return ''; // Nos aseguramos de que tenga ID de IMDb
+                
+                // Verificar si ya la guardaste en favoritos para pintar el corazón
+                const isFav = favoritos.some(f => f.id === m.imdb_code);
+                const favClass = isFav ? 'is-fav' : 'not-fav';
+                
+                return `
+                    <div class="card" onclick="analizarYReproducir('${m.imdb_code}', '${m.title.replace(/'/g, "\\'")}', false)">
+                        <div class="card-badge" style="background:#ffcc00; color:black;">⭐ ${m.rating}</div>
+                        <div class="fav-btn ${favClass}" onclick="toggleFavorito(event, '${m.imdb_code}', '${m.title.replace(/'/g, "\\'")}', false)">❤️</div>
+                        <img src="${m.medium_cover_image}" onerror="this.onerror=null; this.src='https://via.placeholder.com/300x450/1f1f1f/ffffff?text=${encodeURIComponent(m.title)}';">
+                        <div class="card-overlay"><div class="play-icon"></div></div>
+                        <div class="card-info"><div class="card-title">${m.title}</div></div>
+                    </div>
+                `;
+            }).join('');
+        }
         // --- BÚSQUEDA AUTOMÁTICA ---
         async function procesarEntrada() {
             document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
