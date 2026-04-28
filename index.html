@@ -73,9 +73,10 @@
         }
         .cat-btn:hover { color: #fff; }
         .cat-btn.active { color: #fff; border-bottom: 3px solid var(--accent); }
+        .cat-btn.highlight { color: #ffcc00; text-shadow: 0 0 10px rgba(255,204,0,0.3); }
 
         /* --- CONTENIDO PRINCIPAL --- */
-        .content { padding: 20px 4% 50px; flex: 1; }
+        .content { padding: 20px 4% 50px; flex: 1; display: flex; flex-direction: column; }
         
         .header-title-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;}
         h2 { font-size: 1.3rem; margin: 0; font-weight: 600; }
@@ -86,7 +87,7 @@
         .action-btn.danger { background: rgba(229, 9, 20, 0.2); border: 1px solid var(--accent); color: var(--accent); }
         .action-btn.danger:hover { background: var(--accent); color: white; }
 
-        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 20px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 20px; margin-bottom: 30px;}
 
         .card {
             background: var(--surface); border-radius: 8px; overflow: hidden;
@@ -100,7 +101,7 @@
             position: absolute; top: 0; left: 0; right: 0; bottom: 0;
             background: rgba(0,0,0,0.4); opacity: 0; transition: 0.3s;
             display: flex; justify-content: center; align-items: center;
-            pointer-events: none; /* Soluciona el bug del click en el botón play */
+            pointer-events: none; 
         }
         .card:hover .card-overlay { opacity: 1; }
         .play-icon {
@@ -116,6 +117,7 @@
             background: linear-gradient(to top, rgba(0,0,0,0.95) 0%, transparent 100%);
         }
         .card-title { font-size: 0.9rem; font-weight: bold; text-shadow: 1px 1px 2px black; }
+        .card-badge { position: absolute; top: 10px; left: 10px; background: #ffcc00; color: black; font-size: 11px; font-weight: bold; padding: 3px 6px; border-radius: 3px; z-index: 5;}
 
         /* --- BOTÓN FAVORITOS --- */
         .fav-btn {
@@ -129,20 +131,18 @@
         .fav-btn.is-fav { color: var(--accent); }
         .fav-btn.not-fav { color: white; filter: grayscale(100%); opacity: 0.8; }
 
-        /* --- CARGADOR (SPINNER) --- */
-        .loader-container { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; width: 100%; grid-column: 1 / -1; }
-        .spinner { width: 40px; height: 40px; border: 4px solid rgba(255,255,255,0.1); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 15px; }
+        /* --- CARGADOR E INFINITO --- */
+        #sentinel { width: 100%; height: 50px; display: flex; justify-content: center; align-items: center; margin-top: 20px; }
+        .spinner { width: 35px; height: 35px; border: 4px solid rgba(255,255,255,0.1); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; display: none;}
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        /* --- FOOTER & AVISO LEGAL --- */
+        /* --- FOOTER & PAYPAL --- */
         footer {
             background: #0a0a0a; border-top: 1px solid #222;
             padding: 30px 4%; text-align: center; color: #666;
-            font-size: 12px; line-height: 1.6; padding-bottom: 80px;
+            font-size: 12px; line-height: 1.6; padding-bottom: 80px; margin-top: auto;
         }
         .footer-content { max-width: 800px; margin: 0 auto; }
-
-        /* --- PAYPAL FLOTANTE --- */
         .paypal-float {
             position: fixed; bottom: 20px; right: 20px;
             background: #0070ba; color: white; text-decoration: none;
@@ -151,12 +151,7 @@
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5); z-index: 9999;
             transition: all 0.3s ease; border: 2px solid rgba(255,255,255,0.1);
         }
-        .paypal-float:hover {
-            transform: translateY(-5px) scale(1.05);
-            background: #005ea6;
-            box-shadow: 0 8px 25px rgba(0, 112, 186, 0.6);
-            border-color: rgba(255,255,255,0.3);
-        }
+        .paypal-float:hover { transform: translateY(-5px) scale(1.05); background: #005ea6; border-color: rgba(255,255,255,0.3); }
 
         /* --- MODALES --- */
         #series-modal {
@@ -189,7 +184,7 @@
 <body>
 
     <header id="main-header">
-        <div class="logo" onclick="renderCategory('todos')">Vermilion<span>CINEMA</span></div>
+        <div class="logo" onclick="cambiarCategoria('populares', document.querySelectorAll('.cat-btn')[0])">Vermilion<span>CINEMA</span></div>
         <div class="header-controls">
             <select id="globalServer" class="server-selector">
                 <option value="autoembed">🎬 AutoEmbed (Global Multi-Idioma)</option>
@@ -197,49 +192,50 @@
                 <option value="playimdb">🌐 PlayIMDb (Motor Clásico)</option>
             </select>
             <div class="search-container">
-                <input type="text" id="searchInput" placeholder="Buscar título o URL de IMDb..." oninput="toggleClearBtn()" onkeydown="if(event.key === 'Enter') procesarEntrada()">
+                <input type="text" id="searchInput" placeholder="Buscar película, serie o anime..." oninput="toggleClearBtn()" onkeydown="if(event.key === 'Enter') procesarBusqueda()">
                 <button class="btn-clear" id="btnClear" onclick="limpiarBuscador()">✕</button>
-                <button class="btn-go-search" onclick="procesarEntrada()">🔍</button>
+                <button class="btn-go-search" onclick="procesarBusqueda()">🔍</button>
             </div>
         </div>
     </header>
 
     <div class="category-nav" id="cat-nav">
-        <button class="cat-btn active" onclick="renderCategory('todos', this)">Inicio</button>
-        <button class="cat-btn" onclick="renderCategory('favoritos', this)">❤️ Mi Lista</button>
-        <button class="cat-btn highlight" onclick="cargarNovedades(this)">🔥 Populares</button>
-        <button class="cat-btn" onclick="renderCategory('peliculas', this)">Películas</button>
-        <button class="cat-btn" onclick="renderCategory('series', this)">Series</button>
-        <button class="cat-btn" onclick="renderCategory('anime', this)">Anime</button>
+        <button class="cat-btn active highlight" onclick="cambiarCategoria('populares', this)">🔥 Populares</button>
+        <button class="cat-btn" onclick="cambiarCategoria('peliculas', this)">Películas</button>
+        <button class="cat-btn" onclick="cambiarCategoria('series', this)">Series</button>
+        <button class="cat-btn" onclick="cambiarCategoria('anime', this)">Anime</button>
+        <button class="cat-btn" onclick="cambiarCategoria('favoritos', this)">❤️ Mi Lista</button>
     </div>
 
     <div class="content">
         <div class="header-title-container">
-            <h2 id="grid-label">Lo más destacado</h2>
+            <h2 id="grid-label">Cargando...</h2>
             <div id="action-buttons-container" class="action-btns" style="display: none;">
                 <button class="action-btn" onclick="exportarLista()">📥 Exportar</button>
                 <button class="action-btn" onclick="document.getElementById('importInput').click()">📤 Importar</button>
                 <button class="action-btn danger" onclick="vaciarLista()">🗑️ Vaciar</button>
             </div>
         </div>
+        
         <div class="grid" id="mainGrid"></div>
+        
+        <div id="sentinel">
+            <div class="spinner" id="loadingSpinner"></div>
+        </div>
     </div>
     
     <input type="file" id="importInput" accept=".json" style="display: none;" onchange="importarLista(event)">
 
-    <a href="https://paypal.me/ImVermilion" target="_blank" class="paypal-float">
-        ☕ Apoya el proyecto
-    </a>
+    <a href="https://paypal.me/ImVermilion" target="_blank" class="paypal-float">☕ Apoya el proyecto</a>
 
     <footer>
         <div class="footer-content">
-            <p><strong>Aviso Legal y de Copyright:</strong> Vermilion Cinema es una interfaz web de uso personal. No almacenamos, alojamos, subimos ni transmitimos ningún archivo de video, película o contenido multimedia en nuestros servidores. Todo el material visualizado se incrusta ("embed") a través de APIs públicas (como IMDb o TMDb) y enlaza directamente a servidores de terceros de libre acceso en internet, sobre los cuales no tenemos ningún tipo de control ni responsabilidad. Si consideras que algún contenido infringe los derechos de autor, por favor dirige tus reclamaciones a las plataformas de alojamiento correspondientes.</p>
-            <p style="margin-top: 10px; color: #444;">&copy; 2026 Vermilion Cinema - Proyecto sin fines de lucro.</p>
+            <p><strong>Aviso Legal y de Copyright:</strong> Vermilion Cinema es una interfaz web de uso personal...</p>
         </div>
     </footer>
 
     <div id="series-modal">
-        <h3 id="series-name">Cargando...</h3>
+        <h3 id="series-name">Cargando episodios...</h3>
         <p style="color: #888; font-size:14px; margin:0;">Selecciona el episodio</p>
         <div class="select-group">
             <select id="seasonNum" onchange="actualizarEpisodios(this.value)"></select>
@@ -263,48 +259,22 @@
     </div>
 
     <script>
-        // --- BASE DE DATOS MANUAL ---
-        const db = {
-            peliculas: [
-                { n: "Deadpool & Wolverine", id: "tt6263850" },
-                { n: "Dune: Parte Dos", id: "tt15239678" },
-                { n: "Oppenheimer", id: "tt15398776" },
-                { n: "Furiosa: A Mad Max Saga", id: "tt12037194" },
-                { n: "Interestelar", id: "tt0816692" },
-                { n: "Spider-Man: Across the Spider-Verse", id: "tt9362722" },
-                { n: "The Batman", id: "tt1877830" },
-                { n: "El Padrino", id: "tt0068646" }
-            ],
-            series: [
-                { n: "Fallout", id: "tt12637874" },
-                { n: "The Last of Us", id: "tt3581920" },
-                { n: "Shōgun", id: "tt2788316" },
-                { n: "The Boys", id: "tt1190634" },
-                { n: "House of the Dragon", id: "tt11198330" },
-                { n: "Breaking Bad", id: "tt0903747" },
-                { n: "Game of Thrones", id: "tt0944947" },
-                { n: "Stranger Things", id: "tt4574334" }
-            ],
-            anime: [
-                { n: "Attack on Titan", id: "tt2560140" },
-                { n: "Jujutsu Kaisen", id: "tt12343534" },
-                { n: "Demon Slayer", id: "tt9335498" },
-                { n: "One Piece", id: "tt0388629" },
-                { n: "Death Note", id: "tt0877057" },
-                { n: "Solo Leveling", id: "tt21223406" },
-                { n: "Naruto Shippuden", id: "tt0988824" },
-                { n: "Chainsaw Man", id: "tt13616990" }
-            ]
-        };
-
+        // --- CLAVE PÚBLICA DE DESARROLLO TMDB ---
+        const TMDB_KEY = "15d2ea6d0dc1d476efbca3eba2b9bbfb"; 
+        
+        // --- VARIABLES DE ESTADO ---
+        let categoriaActual = 'populares';
+        let paginaActual = 1;
+        let cargando = false;
+        let searchQuery = "";
         let currentShowData = null; 
         let currentImdbId = null;
 
-        // --- SISTEMA DE FAVORITOS (LOCALSTORAGE) ---
-        let favoritos = JSON.parse(localStorage.getItem('vermilion_favs')) || [];
+        // --- FAVORITOS ---
+        let favoritos = JSON.parse(localStorage.getItem('vermilion_favs_v2')) || [];
 
-        function toggleFavorito(event, id, title, isSerie) {
-            event.stopPropagation(); // Evitar que el clic abra la película
+        function toggleFavorito(event, id, title, isSerie, poster, rating) {
+            event.stopPropagation();
             const index = favoritos.findIndex(f => f.id === id);
             
             if (index > -1) {
@@ -312,274 +282,220 @@
                 event.currentTarget.classList.remove('is-fav');
                 event.currentTarget.classList.add('not-fav');
             } else {
-                favoritos.push({ id, n: title, isSerie });
+                favoritos.push({ id, title, isSerie, poster, rating });
                 event.currentTarget.classList.remove('not-fav');
                 event.currentTarget.classList.add('is-fav');
             }
             
-            localStorage.setItem('vermilion_favs', JSON.stringify(favoritos));
-
-            // Si estamos en la pestaña Mi Lista, actualizar la vista
-            const activeBtn = document.querySelector('.cat-btn.active');
-            if (activeBtn && activeBtn.innerText.includes('Mi Lista')) {
-                renderCategory('favoritos', activeBtn);
-            }
+            localStorage.setItem('vermilion_favs_v2', JSON.stringify(favoritos));
+            if (categoriaActual === 'favoritos') renderizarFavoritos();
         }
 
-        // --- IMPORTAR / EXPORTAR / VACIAR LISTA ---
         function exportarLista() {
-            if (favoritos.length === 0) return alert("Tu lista está vacía, no hay nada que exportar.");
-            
+            if (favoritos.length === 0) return alert("Tu lista está vacía.");
             const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(favoritos));
-            const downloadAnchorNode = document.createElement('a');
-            downloadAnchorNode.setAttribute("href", dataStr);
-            downloadAnchorNode.setAttribute("download", "vermilion_lista.json");
-            document.body.appendChild(downloadAnchorNode); // Requerido en algunos navegadores
-            downloadAnchorNode.click();
-            downloadAnchorNode.remove();
+            const downloadNode = document.createElement('a');
+            downloadNode.setAttribute("href", dataStr);
+            downloadNode.setAttribute("download", "vermilion_lista.json");
+            document.body.appendChild(downloadNode);
+            downloadNode.click();
+            downloadNode.remove();
         }
 
         function importarLista(event) {
             const file = event.target.files[0];
             if (!file) return;
-            
             const reader = new FileReader();
             reader.onload = function(e) {
                 try {
-                    const importedData = JSON.parse(e.target.result);
-                    if (Array.isArray(importedData)) {
-                        favoritos = importedData;
-                        localStorage.setItem('vermilion_favs', JSON.stringify(favoritos));
-                        alert("¡Lista importada con éxito!");
-                        renderCategory('favoritos'); 
-                    } else {
-                        alert("El archivo no tiene un formato válido para Vermilion Cinema.");
+                    const imported = JSON.parse(e.target.result);
+                    if (Array.isArray(imported)) {
+                        favoritos = imported;
+                        localStorage.setItem('vermilion_favs_v2', JSON.stringify(favoritos));
+                        alert("¡Lista importada!");
+                        renderizarFavoritos();
                     }
-                } catch (err) {
-                    alert("Error al leer el archivo JSON.");
-                }
+                } catch (err) { alert("Archivo JSON inválido."); }
             };
             reader.readAsText(file);
-            event.target.value = ''; // Limpiar el input para poder volver a subir el mismo archivo si es necesario
+            event.target.value = '';
         }
 
         function vaciarLista() {
-            if (favoritos.length === 0) return;
-            if (confirm("¿Estás seguro de que quieres borrar TODA tu lista? Esta acción no se puede deshacer.")) {
+            if (confirm("¿Borrar toda tu lista?")) {
                 favoritos = [];
-                localStorage.setItem('vermilion_favs', JSON.stringify(favoritos));
-                renderCategory('favoritos');
+                localStorage.setItem('vermilion_favs_v2', JSON.stringify(favoritos));
+                renderizarFavoritos();
             }
         }
 
-        // --- EFECTO NAVBAR SCROLL Y BUSCADOR ---
-        window.addEventListener('scroll', () => {
-            const header = document.getElementById('main-header');
-            if (window.scrollY > 20) header.classList.add('scrolled');
-            else header.classList.remove('scrolled');
-        });
-
-        function toggleClearBtn() {
-            const input = document.getElementById('searchInput').value;
-            document.getElementById('btnClear').style.display = input.length > 0 ? 'block' : 'none';
-        }
-
-        function limpiarBuscador() {
-            document.getElementById('searchInput').value = '';
-            toggleClearBtn();
-            document.getElementById('searchInput').focus();
-        }
-
-        function mostrarCargando(mensaje) {
-            const grid = document.getElementById('mainGrid');
-            grid.innerHTML = `
-                <div class="loader-container">
-                    <div class="spinner"></div>
-                    <div style="color:#aaa;">${mensaje}</div>
-                </div>
-            `;
-        }
-
-        // --- RENDERIZADO GENERAL ---
-        function crearTarjeta(item, isSerieFlag = false) {
-            const poster = `https://images.metahub.space/poster/medium/${item.id}/img`;
-            const fallback = `https://via.placeholder.com/300x450/1f1f1f/ffffff?text=${encodeURIComponent(item.n)}`;
-            
-            const isFav = favoritos.some(f => f.id === item.id);
-            const favClass = isFav ? 'is-fav' : 'not-fav';
-            
-            return `
-                <div class="card" onclick="analizarYReproducir('${item.id}', '${item.n.replace(/'/g, "\\'")}', ${isSerieFlag})">
-                    <div class="fav-btn ${favClass}" onclick="toggleFavorito(event, '${item.id}', '${item.n.replace(/'/g, "\\'")}', ${isSerieFlag})">❤️</div>
-                    <img src="${poster}" onerror="this.onerror=null; this.src='${fallback}';">
-                    <div class="card-overlay"><div class="play-icon"></div></div>
-                    <div class="card-info"><div class="card-title">${item.n}</div></div>
-                </div>
-            `;
-        }
-
-        function renderCategory(cat, btnElement = null) {
-            limpiarBuscador();
-            
-            // Gestión de los botones del menú
-            if (btnElement) {
+        // --- SISTEMA DE CATEGORÍAS Y CARGA ---
+        function cambiarCategoria(cat, btnElement = null) {
+            if(btnElement) {
                 document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
                 btnElement.classList.add('active');
-            } else {
-                document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
-                document.querySelectorAll('.cat-btn')[0].classList.add('active');
             }
-
-            const grid = document.getElementById('mainGrid');
-            const actionBtns = document.getElementById('action-buttons-container');
             
-            // Ocultar botones de acción por defecto
-            actionBtns.style.display = 'none';
+            document.getElementById('searchInput').value = '';
+            toggleClearBtn();
+            searchQuery = "";
 
-            if (cat === 'favoritos') {
-                document.getElementById('grid-label').innerText = "Tus Guardados";
-                actionBtns.style.display = 'flex'; // Mostrar botones de import/export
-                
-                if (favoritos.length === 0) {
-                    grid.innerHTML = "<p style='color:#888; padding: 20px; grid-column: 1/-1;'>Aún no has guardado nada en tu lista. Presiona el ❤️ en cualquier película para guardarla.</p>";
-                } else {
-                    grid.innerHTML = favoritos.map(p => crearTarjeta(p, p.isSerie)).join('');
-                }
-            } else if (cat === 'todos') {
-                document.getElementById('grid-label').innerText = "Lo más destacado de tu lista";
-                const mix = [...db.peliculas.slice(0,4), ...db.series.slice(0,4), ...db.anime.slice(0,4)];
-                grid.innerHTML = mix.map(p => crearTarjeta(p)).join('');
-            } else {
-                document.getElementById('grid-label').innerText = cat.charAt(0).toUpperCase() + cat.slice(1);
-                grid.innerHTML = db[cat].map(p => crearTarjeta(p, cat !== 'peliculas')).join('');
-            }
+            categoriaActual = cat;
+            paginaActual = 1;
+            document.getElementById('mainGrid').innerHTML = ""; // Limpiar grid
+            document.getElementById('action-buttons-container').style.display = (cat === 'favoritos') ? 'flex' : 'none';
+
+            const titulos = {
+                'populares': '🔥 Tendencias Globales',
+                'peliculas': '🎬 Películas Destacadas',
+                'series': '📺 Series Más Vistas',
+                'anime': '🎌 Mejor Anime',
+                'busqueda': '🔍 Resultados de búsqueda'
+            };
+            document.getElementById('grid-label').innerText = titulos[cat] || 'Mi Lista';
+
+            if (cat === 'favoritos') renderizarFavoritos();
+            else cargarMasDatos();
         }
-// --- NOVEDADES EN TIEMPO REAL (SIN API KEY - USANDO YTS) ---
-        // --- NOVEDADES EN TIEMPO REAL (SERIES POPULARES CON TVMAZE) ---
-        // Usamos TVMaze porque es una API sin Key, 100% legal y no está bloqueada por las operadoras
-        async function cargarNovedades(btnElement) {
-            document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
-            btnElement.classList.add('active');
-            
-            // Ocultar botones de exportar/importar si están visibles
-            document.getElementById('action-buttons-container').style.display = 'none';
-            document.getElementById('grid-label').innerText = "🔥 Series del Momento (Sin API Key)";
-            
-            mostrarCargando("Buscando tendencias mundiales...");
+
+        async function cargarMasDatos() {
+            if (cargando || categoriaActual === 'favoritos') return;
+            cargando = true;
+            document.getElementById('loadingSpinner').style.display = 'block';
+
+            let url = "";
+            const lang = "&language=es-ES";
+
+            if (categoriaActual === 'populares') {
+                url = `https://api.themoviedb.org/3/trending/all/week?api_key=${TMDB_KEY}${lang}&page=${paginaActual}`;
+            } else if (categoriaActual === 'peliculas') {
+                url = `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_KEY}${lang}&sort_by=popularity.desc&page=${paginaActual}`;
+            } else if (categoriaActual === 'series') {
+                url = `https://api.themoviedb.org/3/discover/tv?api_key=${TMDB_KEY}${lang}&sort_by=popularity.desc&page=${paginaActual}`;
+            } else if (categoriaActual === 'anime') {
+                url = `https://api.themoviedb.org/3/discover/tv?api_key=${TMDB_KEY}${lang}&with_genres=16&with_original_language=ja&sort_by=popularity.desc&page=${paginaActual}`;
+            } else if (categoriaActual === 'busqueda') {
+                url = `https://api.themoviedb.org/3/search/multi?api_key=${TMDB_KEY}${lang}&query=${encodeURIComponent(searchQuery)}&page=${paginaActual}`;
+            }
 
             try {
-                // Obtenemos la lista principal de TVMaze
-                const res = await fetch(`https://api.tvmaze.com/shows`);
-                const shows = await res.json();
+                const res = await fetch(url);
+                const data = await res.json();
                 
-                // Ordenamos por la propiedad "weight" (popularidad) y cogemos las 16 primeras
-                const populares = shows.sort((a, b) => b.weight - a.weight).slice(0, 16);
-                procesarNovedadesTVMaze(populares);
-            } catch (error) {
-                document.getElementById('mainGrid').innerHTML = "<p style='color:var(--accent); padding: 20px;'>Error al conectar con la base de datos pública.</p>";
+                if (data.results && data.results.length > 0) {
+                    renderizarTarjetas(data.results);
+                    paginaActual++;
+                } else if (paginaActual === 1) {
+                    document.getElementById('mainGrid').innerHTML = "<p style='color:#888; padding:20px;'>No se encontraron resultados.</p>";
+                }
+            } catch (e) {
+                console.error(e);
             }
+
+            cargando = false;
+            document.getElementById('loadingSpinner').style.display = 'none';
         }
 
-        function procesarNovedadesTVMaze(series) {
-            const grid = document.getElementById('mainGrid');
-            
-            grid.innerHTML = series.map(s => {
-                // TVMaze nos da directamente el ID de IMDb, ¡perfecto para nuestro reproductor!
-                const imdbId = s.externals ? s.externals.imdb : null;
-                if(!imdbId) return ''; 
-                
-                // Verificar si ya la guardaste en favoritos para pintar el corazón
-                const isFav = favoritos.some(f => f.id === imdbId);
-                const favClass = isFav ? 'is-fav' : 'not-fav';
-                
-                // Fallbacks por si la serie no tiene imagen o nota
-                const poster = s.image ? s.image.medium : `https://via.placeholder.com/300x450/1f1f1f/ffffff?text=${encodeURIComponent(s.name)}`;
-                const rating = s.rating && s.rating.average ? s.rating.average : '-';
-
-                return `
-                    <div class="card" onclick="analizarYReproducir('${imdbId}', '${s.name.replace(/'/g, "\\'")}', true)">
-                        <div class="card-badge" style="background:#ffcc00; color:black;">⭐ ${rating}</div>
-                        <div class="fav-btn ${favClass}" onclick="toggleFavorito(event, '${imdbId}', '${s.name.replace(/'/g, "\\'")}', true)">❤️</div>
-                        <img src="${poster}" onerror="this.onerror=null; this.src='https://via.placeholder.com/300x450/1f1f1f/ffffff?text=Error';">
-                        <div class="card-overlay"><div class="play-icon"></div></div>
-                        <div class="card-info"><div class="card-title">${s.name}</div></div>
-                    </div>
-                `;
-            }).join('');
-        }
-        // --- BÚSQUEDA AUTOMÁTICA ---
-        async function procesarEntrada() {
-            document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById('action-buttons-container').style.display = 'none';
-            
+        // --- RENDERIZADO VISUAL ---
+        function procesarBusqueda() {
             const input = document.getElementById('searchInput').value.trim();
             if(!input) return;
-            
-            const imdbMatch = input.match(/tt\d+/);
-            if (imdbMatch) {
-                await analizarYReproducir(imdbMatch[0], "Cargando datos...");
+            document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+            searchQuery = input;
+            cambiarCategoria('busqueda');
+        }
+
+        function renderizarFavoritos() {
+            const grid = document.getElementById('mainGrid');
+            if (favoritos.length === 0) {
+                grid.innerHTML = "<p style='color:#888; padding: 20px; grid-column: 1/-1;'>No has guardado nada aún.</p>";
             } else {
-                buscarEnIMDb(input);
+                grid.innerHTML = favoritos.map(item => generarHTMLTarjeta(item.id, item.title, item.isSerie, item.poster, item.rating)).join('');
             }
         }
 
-        function buscarEnIMDb(query) {
-            document.getElementById('grid-label').innerText = "Resultados para: " + query;
-            mostrarCargando("Buscando en la base de datos oficial...");
-            const queryLimpia = query.toLowerCase().replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, '_');
-            const primeraLetra = queryLimpia.charAt(0);
-
-            window[`imdb$${queryLimpia}`] = function(data) {
-                const grid = document.getElementById('mainGrid');
-                if(data.d && data.d.length > 0) {
-                    const resultados = data.d.filter(item => item.id && item.id.startsWith('tt'));
-                    grid.innerHTML = resultados.map(m => {
-                        const isSerie = m.q === "TV series" || m.q === "TV mini-series";
-                        return crearTarjeta({ id: m.id, n: m.l }, isSerie);
-                    }).join('');
-                } else {
-                    grid.innerHTML = "<p style='color:#888; padding: 20px;'>No se encontró nada exacto.</p>";
-                }
-            };
-            const script = document.createElement('script');
-            script.src = `https://sg.media-imdb.com/suggests/${primeraLetra}/${queryLimpia}.json`;
-            document.body.appendChild(script);
+        function renderizarTarjetas(items) {
+            const grid = document.getElementById('mainGrid');
+            const html = items.map(m => {
+                if(!m.poster_path) return '';
+                const title = m.title || m.name;
+                const isSerie = (m.media_type === 'tv') || (categoriaActual === 'series') || (categoriaActual === 'anime');
+                const poster = `https://image.tmdb.org/t/p/w300${m.poster_path}`;
+                const rating = m.vote_average ? m.vote_average.toFixed(1) : 'N/A';
+                
+                return generarHTMLTarjeta(m.id, title, isSerie, poster, rating);
+            }).join('');
+            
+            grid.innerHTML += html;
         }
 
-        // --- SISTEMA DE REPRODUCCIÓN (SERIES Y PELÍCULAS) ---
-        async function analizarYReproducir(imdbId, title, forceSerie = false) {
-            currentImdbId = imdbId;
+        function generarHTMLTarjeta(id, title, isSerie, poster, rating) {
+            const isFav = favoritos.some(f => f.id === id);
+            const favClass = isFav ? 'is-fav' : 'not-fav';
+            const safeTitle = title.replace(/'/g, "\\'");
+
+            return `
+                <div class="card" onclick="reproducirItem(${id}, '${safeTitle}', ${isSerie})">
+                    <div class="card-badge">⭐ ${rating}</div>
+                    <div class="fav-btn ${favClass}" onclick="toggleFavorito(event, ${id}, '${safeTitle}', ${isSerie}, '${poster}', '${rating}')">❤️</div>
+                    <img src="${poster}" loading="lazy" onerror="this.onerror=null; this.src='https://via.placeholder.com/300x450/1f1f1f/ffffff?text=Imagen+No+Disponible';">
+                    <div class="card-overlay"><div class="play-icon"></div></div>
+                    <div class="card-info"><div class="card-title">${title}</div></div>
+                </div>
+            `;
+        }
+
+        // --- SISTEMA DE REPRODUCCIÓN ---
+        async function reproducirItem(tmdbId, title, isSerie) {
+            const label = document.getElementById('grid-label');
+            const textoOriginal = label.innerText;
+            label.innerText = "Abriendo " + title + "...";
+
+            const type = isSerie ? 'tv' : 'movie';
+            try {
+                // Obtener ID de IMDb desde TMDB
+                const res = await fetch(`https://api.themoviedb.org/3/${type}/${tmdbId}/external_ids?api_key=${TMDB_KEY}`);
+                const data = await res.json();
+                
+                if (data && data.imdb_id) {
+                    currentImdbId = data.imdb_id;
+                    if (isSerie) {
+                        await procesarSerieTVMaze(data.imdb_id, title);
+                    } else {
+                        abrirReproductor(data.imdb_id, 'movie');
+                    }
+                } else {
+                    alert("Esta película/serie es demasiado nueva o no tiene un ID de reproducción asignado todavía.");
+                }
+            } catch (e) {
+                alert("Error de conexión con la base de datos.");
+            }
+            label.innerText = textoOriginal;
+        }
+
+        async function procesarSerieTVMaze(imdbId, title) {
             try {
                 const res = await fetch(`https://api.tvmaze.com/lookup/shows?imdb=${imdbId}`);
                 if (res.ok) {
                     const showData = await res.json();
-                    document.getElementById('series-name').innerText = showData.name;
-                    cargarEpisodiosReales(showData.id);
+                    document.getElementById('series-name').innerText = title;
+                    
+                    // Buscar capítulos
+                    const epRes = await fetch(`https://api.tvmaze.com/shows/${showData.id}/episodes`);
+                    const episodes = await epRes.json();
+                    currentShowData = episodes;
+                    
+                    document.getElementById('series-modal').style.display = 'block';
+                    const sSelect = document.getElementById('seasonNum');
+                    const temporadasReales = [...new Set(episodes.map(e => e.season))];
+                    
+                    sSelect.innerHTML = temporadasReales.map(t => `<option value="${t}">Temporada ${t}</option>`).join('');
+                    actualizarEpisodios(temporadasReales[0]);
                 } else {
-                    if(forceSerie) alert("No se pudo cargar el listado de capítulos. Intenta abrirlo como película.");
-                    else abrirReproductor(imdbId, 'movie');
+                    alert("No se pudo cargar el listado de capítulos. Puede que aún no estén disponibles.");
                 }
             } catch (e) {
-                abrirReproductor(imdbId, 'movie');
-            }
-        }
-
-        async function cargarEpisodiosReales(tvmazeId) {
-            document.getElementById('series-modal').style.display = 'block';
-            const sSelect = document.getElementById('seasonNum');
-            const eSelect = document.getElementById('episodeNum');
-            sSelect.innerHTML = "<option>Conectando con base de datos...</option>";
-            eSelect.innerHTML = "";
-
-            try {
-                const res = await fetch(`https://api.tvmaze.com/shows/${tvmazeId}/episodes`);
-                const episodes = await res.json();
-                currentShowData = episodes;
-                const temporadasReales = [...new Set(episodes.map(e => e.season))];
-                sSelect.innerHTML = temporadasReales.map(t => `<option value="${t}">Temporada ${t}</option>`).join('');
-                actualizarEpisodios(temporadasReales[0]);
-            } catch (e) {
-                sSelect.innerHTML = "<option>Error de carga</option>";
+                alert("Error al cargar los episodios de la serie.");
             }
         }
 
@@ -617,8 +533,34 @@
         function cerrarModal() { document.getElementById('series-modal').style.display = 'none'; }
         function cerrarPlayer() { document.getElementById('player-layer').style.display = 'none'; document.getElementById('videoFrame').src = ''; }
 
-        // Inicializar al abrir la página
-        window.onload = () => renderCategory('todos');
+        // --- UTILIDADES EXTRA ---
+        window.addEventListener('scroll', () => {
+            const header = document.getElementById('main-header');
+            if (window.scrollY > 20) header.classList.add('scrolled');
+            else header.classList.remove('scrolled');
+        });
+
+        function toggleClearBtn() {
+            const input = document.getElementById('searchInput').value;
+            document.getElementById('btnClear').style.display = input.length > 0 ? 'block' : 'none';
+        }
+        function limpiarBuscador() {
+            document.getElementById('searchInput').value = '';
+            toggleClearBtn();
+        }
+
+        // --- SCROLL INFINITO (INTERSECTION OBSERVER) ---
+        const observer = new IntersectionObserver((entries) => {
+            if (entries[0].isIntersecting) {
+                cargarMasDatos();
+            }
+        }, { rootMargin: "100px" });
+
+        // Inicialización
+        window.onload = () => {
+            observer.observe(document.getElementById('sentinel'));
+            cambiarCategoria('populares');
+        };
     </script>
 </body>
 </html>
